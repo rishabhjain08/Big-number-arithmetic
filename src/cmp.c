@@ -1,0 +1,45 @@
+#include <string.h>
+#include "tools.h"
+
+int cmp(char a[], char b[]){
+	a = clone ( a );
+	b = clone ( b );
+    a = remove_leading_zeros(a);
+    b = remove_leading_zeros(b);
+    remove_ending_zeros(a);
+    remove_ending_zeros(b);
+    
+//    int len_a = strlen(a);
+//    int len_b = strlen(b);
+    
+    int dec_a = get_decimal_position(a);
+    int dec_b = get_decimal_position(b);
+    
+    if (dec_a > dec_b){
+        return 1;
+    }
+    else if (dec_a < dec_b){
+        return -1;
+    }
+    
+    int i;
+    for (i = 0;; i++){
+        if (a[i] == '\0'){
+            if (b[i] != '\0'){
+                return -1;
+            }
+            else{
+                return 0;
+            }
+        }
+        else if (b[i] == '\0'){
+            return 1;
+        }
+        if (a[i] > b[i]){
+            return 1;
+        }
+        else if (a[i] < b[i]){
+            return -1;
+        }
+    }
+}

@@ -1,0 +1,49 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#define DEBUG 1
+
+void set_max_len( int );
+
+char * input(){
+    FILE *fp = fopen("calc.input", "r");
+    if (fp != NULL){
+        fseek(fp, 0L, SEEK_END);
+        int sz = ftell(fp);
+        fseek(fp, 0L, SEEK_SET);
+        
+        char * line = (char *) malloc(sz * sizeof(char));
+        line[sz] = '\0';
+        
+        int num_digits;
+        
+        fscanf(fp, "%d\n", &num_digits);
+        fgets(line, sz, fp);
+		
+		int len_line = strlen(line);
+
+        if( DEBUG ) printf("\nInput is : \n\"%s\"",line);
+ 		if( line [ len_line -1 ] == '\n' ){
+        	line [ len_line -1 ] = '\0';
+        	}
+
+       if( DEBUG ) printf("\nInput modified is: \n\"%s\"\n",line);
+        
+
+        set_max_len(num_digits);
+
+
+        return line;
+    }
+    else{
+        if( DEBUG ) printf("IO ERROR\n");
+    }
+}
+
+void output(char * out){
+    FILE *fp = fopen("calc.output", "w");
+    fputs(out, fp);
+    fclose(fp);
+}
+

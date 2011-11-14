@@ -1,0 +1,395 @@
+#include<stdio.h>
+#include"list1.h"
+#include<string.h>
+#include<stdlib.h>
+#include"basic_ops.h"
+#include "bodmas.h"
+#include "character.h"
+#include "tools.h"
+/*
+macros here
+*/
+#define ZERO 48
+#define unary -1
+#define invalid_no_op -2
+#define ok 1 
+#define LEFT -1
+#define RIGHT 1
+#define no_need -1
+#define DIV_ERROR  "DivErr"
+#define SQRT_ERROR "SqrtErr"
+ #define SYN_ERROR "SynErr"
+#define PREC_ERROR "LowPrec"
+#define DEBUG 0
+
+/*structures*/
+struct info
+	{
+		int op,pos,state;
+	};
+
+/*
+function declarations here
+*/
+char *extract_number ( int  ,  int  , int  , int  , int  ) ;
+struct info locop(int , int ,int );
+void handle_functions( int );
+int check_input ( char * );
+/*global variables
+*/
+int max_len = 100;
+/*main function*/
+
+
+char *parse( char * exp ) {
+	//exp = " SQRT( 2 ) * SQRT ( 2 )";
+	if( DEBUG ) printf("exp is : \"%s\"\n",exp);
+	if( !check_input_before ( exp ) )
+		return SYN_ERROR;	
+	/*
+	char *exp;
+	//exp = argv[1];
+	exp="4-6+89*458-787";
+	
+	/*
+		Read the expression here from the file int exp
+	*/
+	
+	/* Read into the list*/
+	int _func=createlist();
+	int i=0,exp_length=strlen(exp);
+	while(i<exp_length && exp[i] != '\0'){
+		if( exp [ i ] != ' '  && exp[i] != '\t' ){
+			attachlist( _func , char_to_string( exp[i] ) );
+		}
+		i++;
+	}
+	if( ! check_input_after (list_to_string( _func , 0 , countlist( _func ) ) ) )
+		return SYN_ERROR;
+	//Done reading into the list
+	
+	//printf("\nid : 1");printlist(_func);
+	//exit(9);
+	if( DEBUG ) printf("The list thus formed is \"");
+	if( DEBUG ) printlist(_func);
+	if( DEBUG ) printf("\"\n");
+	handle_functions( _func );
+		
+	//printf("\nid : 2");printlist(_func);
+	//exit(10);
+		
+	int ob=createstack();
+	
+	if( DEBUG ) printf("stack ob : %d",ob);
+	
+	i=0;
+	int close=0,open=0;
+	struct info op_info;
+	char *result;
+	
+	char *bodmassed = bodmas(list_to_string(_func , 0  , countlist(_func)));
+	clearlist(_func);
+	insertlist(_func , bodmassed , 0 );
+	
+	if( DEBUG )	printf("BODMAS : ");
+	if( DEBUG ) printlist(_func);
+	
+	for(i=0;i<countlist(_func);i++)
+	{
+		if( DEBUG ) printf("\nIn loop");
+		if( DEBUG ) printlist(_func);	
+		
+		if(readlist(_func,countlist(_func)-1)!=')')
+				return 0;
+		if(readlist(_func,i)=='(')
+			push(ob,i);
+		if(readlist(_func,i)==')')
+		{
+			open=pop(ob);
+			close=i;
+			op_info=locop(_func , open,close);
+			int negl=1,negr=1,op=0,sign=1;
+			if(op_info.state==ok){//i.e. not a unary value
+				/*Computing the result of a bracket*/
+				if( DEBUG ) printf("operator is : %c \n",op_info.op);
+				char *left=list_to_string(_func , open+1,op_info.pos);
+				char *right=list_to_string(_func , op_info.pos+1,close);
+				if( strlen( left ) == 0 || strlen ( right ) == 0 ){
+					if( DEBUG ) printf("Returning from here 1\n");
+					return SYN_ERROR;
+				}
+				if( DEBUG ) printf("\n(%d,%d) (%d,%d)\nleft is : %s\nRight is : %s",open+1,op_info.pos-1,op_info.pos+1,close-1,left,right);
+				if(left[0]=='?'){
+					negl=-1;
+					left++;	
+				}
+				if(right[0]=='?'){
+					negr=-1;
+					right++;
+				}
+				if( DEBUG ) printf("\n(%d,%d) (%d,%d)\nnew left is : \"%s\"\nnew Right is : \"%s\"\nnegl=%d and negr = %d",open+1,op_info.pos-1,op_info.pos+1,close-1,left,right , negl , negr );
+				switch(op_info.op){
+					case '*':
+						if( DEBUG ) printf("in case *\n");
+						result = mul(left,right);
+						sign=negl*negr;
+						op='*';
+						break;
+					case '/':
+						if( DEBUG ) printf("in case /\n");
+						if( cmp ( right , "0" ) == 0 ){
+							return DIV_ERROR;
+						}
+						result=_div(left,right);
+						sign=negl*negr;
+						op='/';
+						break;
+					case '@':
+						//if(negr==-1) raise a error;
+						if( DEBUG ) printf("in case @\n");
+						if( negr == -1 )
+							return SQRT_ERROR;
+						result = _sqrt(right);
+						sign=1;
+						op='@';
+						break;
+					default : 
+						if((negl*negr==1&&op_info.op=='+')||(negl*negr==-1&&op_info.op=='-')){
+							if( DEBUG ) printf("\nAdding\n");
+							result=add(left,right);
+							if(op_info.op=='+'&&negl==-1&&negr==-1)
+								sign=-1;
+							if(op_info.op=='-'&&negl==-1)
+								sign=-1;
+							if( DEBUG ) printf("In add op is : %c and negl = %d and negr= %d\n",op,negl,negr);
+							op='+';
+						}
+						else if((negl*negr==-1&&op_info.op=='+')||(negl*negr==1&&op_info.op=='-')){
+							if( DEBUG ) printf("\nold sign : %d\n",sign);
+							if( DEBUG ) printf("\nSubtracting\n");
+							int compare_result=0;
+							//compare_result = -1 * cmp ( extract_number(_func , op_info.pos , open , close , LEFT) , extract_number(_func , op_info.pos , open , close , RIGHT) ); //~ Change HERE
+							compare_result = -1 * cmp ( left , right ); //~ Change HERE
+							//compare_result=compare(op_info.pos);
+							result=sub(compare_result>0?right:left,compare_result>0?left:right);
+							int swapped=(compare_result>0)?1:-1;
+							if(op_info.op=='+')
+								sign=( ( swapped == 1 )? negr :negl );
+							else if(op_info.op=='-'){
+								if(swapped==1&&negl==1&&negr==1)
+									sign=-1;
+								else if(swapped==-1&&negl==-1&&negr==-1){
+									sign=-1;
+								}
+							}
+							op='-';
+							if( DEBUG ) printf("\nsign : %d and swapped : %d\n",sign,swapped);
+						}
+	/*					else{
+							if( DEBUG )
+								printf ( "Returning from here , no such operator\n");
+							//return SYN_ERROR;
+						}
+	*/
+						if( DEBUG ) printf("\nsign : %d\n",sign);
+						break;
+				}
+			}
+			else if(op_info.state==unary){
+				if( DEBUG ) printf("in unary");
+				result=list_to_string( _func , open+1 , close);
+				sign=1;
+			}
+			else if(op_info.state==invalid_no_op){
+				//Error more than one operator in a bracket
+				if( DEBUG ) printf("Returning from here 2\n");
+				return SYN_ERROR;
+			}
+			/*Editing the list*/
+			int k=0;
+			//Deleting the old string
+			if( DEBUG ) printf("\nopen : %d closing : %d Replacing : ",open,close);
+			if( DEBUG ) printf(":");
+			while(k<close-open+1){
+				if( DEBUG ) printf("%c",readlist(_func,open));
+				deletelist(_func,open);
+				k++;
+			}
+			if( DEBUG ) printf(": with %s\n" , result);
+			if( DEBUG ) printf("\nk : %d",k);
+			
+			//inserting the result
+			if( DEBUG ) printf("Result : %s",result);
+			if( DEBUG ) printf("\nInserting : ");
+			k=open-1;
+			if(sign==-1){
+				if( DEBUG ) printf("?");
+				insertlist(_func,"?",k+1);
+				k++;
+			}
+			int start=k;
+			int result_length=strlen(result);
+			if( DEBUG ) printf("\n\n");
+			/*
+			while(k-start<result_length){
+				if( DEBUG ) printf("%c",*(result+k-start));
+				insertlist( _func , ( char * )char_to_string ( *(result+k-start) ) , k+1);
+				//printf("At index : %d",k-start);
+				k++;
+				
+			}
+			*/
+			insertlist( _func , result , k+1);
+			if( DEBUG ) printf("\n\n");
+			/*Done editing the list*/
+			i=open+result_length-1;//incrementing the counter
+			if( DEBUG ) printf("Starting again from : %d",i);
+		}
+	}
+		if( DEBUG ) printf("Final Result : ");
+		if( DEBUG ) printlist(_func);
+		char *for_return = list_to_string ( _func  , 0 ,countlist ( _func ) ) ;
+		if(for_return[0] == '?')
+			for_return[0] = '-';
+		if ( countstack ( ob ) != -1){
+			if( DEBUG ) printf("stack size is : %d\n", countstack(ob));
+			if( DEBUG ) printf("Returning from here 3\n");
+			return SYN_ERROR;
+		}
+		if ( get_decimal_position ( for_return ) > max_len ){
+			if( DEBUG ) printf("integral part for %s is %d digit's long and max_len = %d\n",for_return , get_decimal_position ( for_return ) , max_len );
+			return PREC_ERROR; 
+		}
+		else{
+			for_return = chop ( for_return , max_len - get_decimal_position ( for_return ) );	
+		}
+		for_return = remove_leading_zeros ( for_return );
+		remove_ending_zeros ( for_return );
+		return for_return;
+}
+
+void handle_functions(int _func){
+	insertlist(_func,"(",0);
+	insertlist(_func,")",countlist(_func));
+	char sqrt[5]={'S','Q','R','T','\0'};
+	char sqrt_sign[3]={'0','@','\0'};
+	replace(_func,sqrt,sqrt_sign);
+	
+	//printf("\nid : 4");printlist(_func);
+	//exit(11);
+	char *temp  =list_to_string(_func , 0 , countlist ( _func ) );
+	char *edited_list = enclose( temp ,'@');
+	clearlist ( _func );
+	//printf("Char to string check %s\n" , char_to_string ( '9' ) );
+	if( DEBUG ) printf("After clearing printlist is : ");
+	if( DEBUG ) printlist(_func);
+	if( DEBUG ) printf("\n");
+	//exit(9);
+	insertlist ( _func , edited_list , 0 );
+	if( DEBUG ) printf(" id : 3a\nAfter inserting:  ");
+	if( DEBUG ) printlist( _func );
+	if( DEBUG ) printf("\n");
+	//exit(0);
+}
+/*
+char *parse(int open,int close){//there is only a number between open and close ex : for 12 open=0 close=1
+	char *num=(char *)malloc(sizeof(char)*(close-open+2));
+	int i=0;
+	while(i<close-open+1){
+		*(num+i)=readlist(_func,open+i);
+		i++;
+	}
+	*(num+close-open+1)='\0';
+	return num;
+	}
+*/
+struct info locop(int _func , int open,int close)
+{
+	int i=open,count=0;
+	char ch;
+	struct info ino;
+	ino.op=0;
+	ino.pos=0;
+	ino.state=invalid_no_op;
+	while(i<close-1)
+	{
+		i++;
+	    ch=readlist(_func,i);
+		if((ch>ZERO+9||ch<ZERO)&&ch!='?'&&ch!='.')
+		{
+			count++;
+			ino.op=ch;
+			ino.pos=i;
+			ino.state=ok;
+		}
+	}
+	if(count==1)
+		return ino;
+	else if(count==0)
+	{
+			ino.state=unary;
+			return ino;
+	}
+	else
+	{
+		/*Error encountered: There cannot be more than one operator in a bracket*/
+		//printf("Error : More than one operators");
+		ino.state=invalid_no_op;
+		return ino; 
+	}
+}
+
+char *extract_number ( int _func ,  int pos , int open , int close , int dir ) {
+	int i = pos + dir;
+	char ch = readlist( _func , i );
+	int size = 0;
+	/*if( LEFT ) 
+		size = pos - open ;
+	else if ( RIGHT )
+		size = close - pos;*/
+	size = -dir*pos + ( ( 1 + dir )*close - ( 1 - dir )*open ) / 2;
+	char *num = (char * )malloc( sizeof( char ) * size ); 
+	int offset = 0;
+	while( (ch < 10 + '0' && ch >= '0') 
+				|| ch=='.' 
+				|| ch=='?'
+				) {
+			if ( ch < 10 + '0' && ch >= '0' ) 
+				num[ dir*(i - (pos + dir) ) -offset ] = ch;
+			else
+				offset++;
+			i+=dir;
+			ch = readlist(_func , i );
+		}
+		num[ dir*(i - (pos + dir) ) -offset ]  = '\0';
+		return num;			
+}
+
+int check_input_after ( char * exp) {
+		int exp_len = strlen (exp ) , i;
+		for(i = 0 ; i < exp_len -1 ; i++ ){
+		 	if(exp[i] == ')' && exp [i+1] == '(' ){
+		 		return 0;
+	 		}
+		 }
+	return 1;	
+}
+
+int check_input_before ( char * exp) {
+		int exp_len = strlen (exp ) , i;
+		for(i = 0 ; i < exp_len ; i++ ){
+		 	if(i < exp_len - 1 && exp[i] == ' ' && exp [i+1] == ' ' ){
+		 		return 0;
+	 		}
+	 		if( i < exp_len - 2 && ( exp[i] >= '0' && exp[i] <= '9' ) &&  exp[i+1] == ' ' && ( exp[i +2] >= '0' && exp[i+2] <= '9' ) ){
+	 			return 0;
+	 		}
+		 }
+	return 1;	
+}
+
+void set_max_len(int i){
+	if( DEBUG ) printf("Max_LEN  =  %d\n",i);
+	max_len = i;
+}
+
